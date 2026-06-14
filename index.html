@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{min-height:100vh;color:#fff;overflow-x:hidden;transition:background 1s ease}
+
+/* Background themes */
+body.clear-day{background:linear-gradient(160deg,#1a6fc4 0%,#4a9eed 40%,#7ec8f8 100%)}
+body.clear-night{background:linear-gradient(160deg,#0b1628 0%,#162544 40%,#1e3a5f 100%)}
+body.cloudy-day{background:linear-gradient(160deg,#5a7d9a 0%,#8aabbf 40%,#b0c8d8 100%)}
+body.cloudy-night{background:linear-gradient(160deg,#2c3e50 0%,#3d566e 40%,#546e85 100%)}
+body.rainy{background:linear-gradient(160deg,#2c3e50 0%,#4a6572 40%,#607d8b 100%)}
+body.snowy{background:linear-gradient(160deg,#6b8fa3 0%,#95b0c0 40%,#c5dae6 100%)}
+body.foggy{background:linear-gradient(160deg,#6a7b8b 0%,#8fa0ad 40%,#adbcc6 100%)}
+body.stormy{background:linear-gradient(160deg,#1a1a2e 0%,#2d2d44 40%,#3d3d5c 100%)}
+body.default{background:linear-gradient(160deg,#1a6fc4 0%,#4a9eed 40%,#7ec8f8 100%)}
+
+/* Layout */
+.app{max-width:480px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;position:relative}
+
+/* Search */
+.search-wrap{position:relative;margin-bottom:24px}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:rgba(255,255,255,.5);pointer-events:none}
+.search-input{width:100%;padding:12px 16px 12px 42px;border:none;border-radius:14px;
+  background:rgba(255,255,255,.15);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  color:#fff;font-size:16px;outline:none;transition:background .2s}
+.search-input::placeholder{color:rgba(255,255,255,.5)}
+.search-input:focus{background:rgba(255,255,255,.22)}
+
+/* Glass card */
+.glass{background:rgba(255,255,255,.12);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:16px}
+.glass+.glass{margin-top:14px}
+
+/* Current weather */
+.current{text-align:center;padding:20px 16px 24px}
+.current-city{font-size:22px;font-weight:500;letter-spacing:.3px;opacity:.9}
+.current-temp{font-size:86px;font-weight:200;line-height:1;margin:6px 0 2px;letter-spacing:-4px}
+.current-desc{font-size:17px;font-weight:400;opacity:.85;margin-bottom:4px}
+.current-hilo{font-size:17px;font-weight:500;opacity:.75}
+.current-icon{width:80px;height:80px;margin:0 auto 4px}
+.current-icon svg{width:100%;height:100%}
+
+/* Detail grid */
+.details{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px}
+.detail-item{display:flex;align-items:center;gap:10px;padding:8px 4px}
+.detail-item svg{width:22px;height:22px;flex-shrink:0;opacity:.7}
+.detail-label{font-size:12px;text-transform:uppercase;letter-spacing:.5px;opacity:.55;font-weight:500}
+.detail-value{font-size:20px;font-weight:500}
+
+/* Hourly chart */
+.hourly-title{font-size:13px;text-transform:uppercase;letter-spacing:.8px;opacity:.5;font-weight:600;margin-bottom:12px}
+.chart-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+.chart-wrap::-webkit-scrollbar{display:none}
+.chart-labels{display:flex;justify-content:space-between;padding:0 6px;margin-top:8px}
+.chart-labels span{font-size:11px;opacity:.5;text-align:center;min-width:28px}
+.hourly-temps{display:flex;justify-content:space-between;padding:0 6px;margin-top:4px}
+.hourly-temps span{font-size:13px;font-weight:500;text-align:center;min-width:28px}
+
+/* Daily forecast */
+.daily-title{font-size:13px;text-transform:uppercase;letter-spacing:.8px;opacity:.5;font-weight:600;margin-bottom:10px}
+.daily-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.daily-row:last-child{border-bottom:none}
+.daily-day{width:52px;font-size:15px;font-weight:500}
+.daily-icon{width:28px;height:28px;flex-shrink:0;margin:0 8px}
+.daily-icon svg{width:100%;height:100%}
+.daily-desc{flex:1;font-size:13px;opacity:.6;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.daily-hilo{display:flex;gap:8px;font-size:15px;font-weight:500;margin-left:auto}
+.daily-hilo .lo{opacity:.45}
+
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:15px;opacity:.6}
+
+/* Error */
+.error-box{text-align:center;padding:40px 20px}
+.error-box h2{font-size:20px;font-weight:500;margin-bottom:8px}
+.error-box p{font-size:14px;opacity:.6;line-height:1.5}
+.error-box button{margin-top:16px;padding:10px 24px;border:none;border-radius:10px;
+  background:rgba(255,255,255,.2);color:#fff;font-size:15px;cursor:pointer;transition:background .2s}
+.error-box button:hover{background:rgba(255,255,255,.3)}
+
+/* Animations */
+.fade-in{animation:fadeUp .5s ease forwards;opacity:0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}.delay-4{animation-delay:.4s}
+
+/* Responsive */
+@media(min-width:600px){
+  .app{padding:32px 24px 48px}
+  .current-temp{font-size:96px}
+  .glass{padding:20px}
+}
+</style>
+</head>
+<body class="default">
+<div class="app" id="app">
+  <div class="loading" id="loadingView">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading weather...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ── Weather Icons (inline SVG) ──────────────────────────── */
+const ICONS = {
+  sun: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1.5" x2="12" y2="3.5"/><line x1="12" y1="20.5" x2="12" y2="22.5"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1.5" y1="12" x2="3.5" y2="12"/><line x1="20.5" y1="12" x2="22.5" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></g></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a9 9 0 1 0 0 18c2.8 0 5.3-1.3 7-3.3A8 8 0 0 1 12 2Z"/></svg>',
+  partlyCloudy: '<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="7" r="3.5" fill="currentColor" opacity=".85"/><path d="M7 12h11a4 4 0 0 1 0 8H8a5 5 0 0 1-1-10Z" fill="currentColor"/></svg>',
+  cloudy: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 10h12a4 4 0 0 1 0 8H7a5 5 0 0 1-1-10Z" opacity=".9"/><path d="M8 6h8a3 3 0 0 1 0 6H9a4 4 0 0 1-1-8Z" opacity=".5"/></svg>',
+  fog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h10a3 3 0 0 0 0-6 4 4 0 0 0-4 4" opacity=".6"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="5" y1="17" x2="19" y2="17"/><line x1="7" y1="21" x2="17" y2="21"/></svg>',
+  drizzle: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 8h12a4 4 0 0 1 0 8H7a5 5 0 0 1-1-10Z" opacity=".7"/><line x1="8" y1="19" x2="8" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="19" x2="16" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  rain: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 7h12a4 4 0 0 1 0 8H7a5 5 0 0 1-1-10Z" opacity=".7"/><line x1="8" y1="18" x2="7" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="18" x2="11" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="18" x2="15" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  snow: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 7h12a4 4 0 0 1 0 8H7a5 5 0 0 1-1-10Z" opacity=".7"/><circle cx="8" cy="19" r="1.3"/><circle cx="12" cy="21" r="1.3"/><circle cx="16" cy="19" r="1.3"/></svg>',
+  storm: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12a4 4 0 0 1 0 8H7a5 5 0 0 1-1-10Z" opacity=".6"/><path d="M13 14l-3 5h3l-2 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>',
+  feels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><circle cx="12" cy="18" r="1.5" fill="currentColor"/></svg>',
+  humidity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8 8 5 12 5 15.5a7 7 0 0 0 14 0C19 12 16 8 12 2Z"/></svg>',
+  wind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h14a3 3 0 1 0-3-3"/><path d="M2 6h8a2 2 0 1 1 2 2"/><path d="M2 18h10a3 3 0 1 1-3 3"/></svg>'
+};
+
+/* ── WMO Weather Code Mapping ────────────────────────────── */
+const WMO = {
+  0:  {desc:'Clear Sky',     cn:'晴',    icon:'sun',  bg:'clear'},
+  1:  {desc:'Mainly Clear',   cn:'大部晴朗', icon:'sun',  bg:'clear'},
+  2:  {desc:'Partly Cloudy', cn:'多云',   icon:'partlyCloudy', bg:'cloudy'},
+  3:  {desc:'Overcast',      cn:'阴',    icon:'cloudy', bg:'cloudy'},
+  45: {desc:'Fog',           cn:'雾',    icon:'fog',   bg:'foggy'},
+  48: {desc:'Rime Fog',      cn:'雾凇',   icon:'fog',   bg:'foggy'},
+  51: {desc:'Light Drizzle', cn:'小毛毛雨', icon:'drizzle', bg:'rainy'},
+  53: {desc:'Drizzle',       cn:'毛毛雨',  icon:'drizzle', bg:'rainy'},
+  55: {desc:'Dense Drizzle', cn:'密集毛毛雨',icon:'drizzle', bg:'rainy'},
+  56: {desc:'Freezing Drizzle',cn:'冻毛毛雨',icon:'drizzle',bg:'rainy'},
+  57: {desc:'Dense Freezing Drizzle',cn:'密集冻毛毛雨',icon:'drizzle',bg:'rainy'},
+  61: {desc:'Light Rain',    cn:'小雨',   icon:'rain',  bg:'rainy'},
+  63: {desc:'Rain',          cn:'中雨',   icon:'rain',  bg:'rainy'},
+  65: {desc:'Heavy Rain',    cn:'大雨',   icon:'rain',  bg:'rainy'},
+  66: {desc:'Freezing Rain', cn:'冻雨',   icon:'rain',  bg:'rainy'},
+  67: {desc:'Heavy Freezing Rain',cn:'强冻雨',icon:'rain',bg:'rainy'},
+  71: {desc:'Light Snow',    cn:'小雪',   icon:'snow',  bg:'snowy'},
+  73: {desc:'Snow',          cn:'中雪',   icon:'snow',  bg:'snowy'},
+  75: {desc:'Heavy Snow',    cn:'大雪',   icon:'snow',  bg:'snowy'},
+  77: {desc:'Snow Grains',   cn:'雪粒',   icon:'snow',  bg:'snowy'},
+  80: {desc:'Light Showers', cn:'阵雨',   icon:'rain',  bg:'rainy'},
+  81: {desc:'Showers',       cn:'中阵雨',  icon:'rain',  bg:'rainy'},
+  82: {desc:'Heavy Showers', cn:'强阵雨',  icon:'rain',  bg:'rainy'},
+  85: {desc:'Light Snow Showers',cn:'小阵雪',icon:'snow',bg:'snowy'},
+  86: {desc:'Heavy Snow Showers',cn:'大阵雪',icon:'snow',bg:'snowy'},
+  95: {desc:'Thunderstorm',  cn:'雷暴',   icon:'storm', bg:'stormy'},
+  96: {desc:'Thunderstorm + Hail',cn:'雷暴伴冰雹',icon:'storm',bg:'stormy'},
+  99: {desc:'Severe Thunderstorm',cn:'强雷暴伴冰雹',icon:'storm',bg:'stormy'}
+};
+
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const GEO_API = 'https://geocoding-api.open-meteo.com/v1/search';
+const WX_API = 'https://api.open-meteo.com/v1/forecast';
+
+/* ── State ───────────────────────────────────────────────── */
+const app = document.getElementById('app');
+
+/* ── API Helpers ─────────────────────────────────────────── */
+async function geocode(name) {
+  const r = await fetch(`${GEO_API}?name=${encodeURIComponent(name)}&count=1&language=zh`);
+  if (!r.ok) throw new Error('Geocoding failed');
+  const d = await r.json();
+  if (!d.results || !d.results.length) throw new Error('City not found');
+  const c = d.results[0];
+  return { name: c.name, lat: c.latitude, lon: c.longitude, country: c.country || '' };
+}
+
+async function fetchWeather(lat, lon) {
+  const params = new URLSearchParams({
+    latitude: lat, longitude: lon,
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day',
+    hourly: 'temperature_2m,weather_code,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+    timezone: 'auto', forecast_days: 5
+  });
+  const r = await fetch(`${WX_API}?${params}`);
+  if (!r.ok) throw new Error('Weather fetch failed');
+  return r.json();
+}
+
+/* ── Background Theme ────────────────────────────────────── */
+function setTheme(code, isDay) {
+  const w = WMO[code] || WMO[0];
+  let bg = w.bg;
+  const night = isDay === 0;
+  if (bg === 'clear') bg = night ? 'clear-night' : 'clear-day';
+  else if (bg === 'cloudy') bg = night ? 'cloudy-night' : 'cloudy-day';
+  document.body.className = bg;
+}
+
+/* ── SVG Bezier Chart ────────────────────────────────────── */
+function buildChart(temps, hours, count) {
+  const W = 660, H = 140, PX = 24, PY = 20;
+  const mn = Math.min(...temps), mx = Math.max(...temps);
+  const range = mx - mn || 1;
+  const step = (W - PX * 2) / (count - 1);
+
+  const pts = temps.map((t, i) => ({
+    x: PX + i * step,
+    y: PY + (1 - (t - mn) / range) * (H - PY * 2)
+  }));
+
+  // Catmull-Rom → Cubic Bezier
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const tension = 6;
+    const cp1x = p1.x + (p2.x - p0.x) / tension;
+    const cp1y = p1.y + (p2.y - p0.y) / tension;
+    const cp2x = p2.x - (p3.x - p1.x) / tension;
+    const cp2y = p2.y - (p3.y - p1.y) / tension;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+
+  // Gradient fill path (close to bottom)
+  const fillD = d + ` L${pts[pts.length-1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+
+  // Labels (show every 3 hours)
+  const labels = hours.map((h, i) => {
+    const hr = new Date(h).getHours();
+    const label = hr === 0 ? '12AM' : hr < 12 ? hr + 'AM' : hr === 12 ? '12PM' : (hr - 12) + 'PM';
+    return { label, x: pts[i].x, show: i % 3 === 0 };
+  });
+
+  // Temperature labels above dots
+  const tempLabels = temps.map((t, i) => ({
+    t: Math.round(t) + '°',
+    x: pts[i].x,
+    y: pts[i].y - 10,
+    show: i % 3 === 0
+  }));
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:580px;height:auto" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(255,255,255,.25)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,.02)"/>
+      </linearGradient>
+    </defs>
+    <path d="${fillD}" fill="url(#cg)"/>
+    <path d="${d}" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#fff"/>`).join('')}
+    ${tempLabels.filter(l=>l.show).map(l => `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="middle" fill="#fff" font-size="11" font-weight="500">${l.t}</text>`).join('')}
+    ${labels.filter(l=>l.show).map(l => `<text x="${l.x.toFixed(1)}" y="${H - 2}" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="10">${l.label}</text>`).join('')}
+  </svg>`;
+}
+
+/* ── Render ───────────────────────────────────────────────── */
+function render(city, data) {
+  const cur = data.current;
+  const hourly = data.hourly;
+  const daily = data.daily;
+  const wmo = WMO[cur.weather_code] || WMO[0];
+  const isDay = cur.is_day;
+
+  setTheme(cur.weather_code, isDay);
+
+  // Find current hour index
+  const nowStr = cur.time;
+  let hIdx = hourly.time.indexOf(nowStr);
+  if (hIdx < 0) {
+    // Find closest hour
+    const now = new Date(nowStr);
+    hIdx = hourly.time.findIndex(t => new Date(t) >= now);
+    if (hIdx < 0) hIdx = 0;
+  }
+
+  // 24-hour slice
+  const hSlice = { temps: [], times: [] };
+  for (let i = hIdx; i < Math.min(hIdx + 24, hourly.time.length); i++) {
+    hSlice.temps.push(hourly.temperature_2m[i]);
+    hSlice.times.push(hourly.time[i]);
+  }
+
+  const todayHi = daily.temperature_2m_max[0];
+  const todayLo = daily.temperature_2m_min[0];
+
+  // Daily rows (skip today, show next 4 days)
+  const dailyRows = [];
+  for (let i = 1; i < daily.time.length; i++) {
+    const d = new Date(daily.time[i]);
+    const dw = WMO[daily.weather_code[i]] || WMO[0];
+    dailyRows.push({
+      day: DAYS[d.getDay()],
+      icon: ICONS[dw.icon] || ICONS.sun,
+      desc: dw.cn,
+      hi: Math.round(daily.temperature_2m_max[i]),
+      lo: Math.round(daily.temperature_2m_min[i])
+    });
+  }
+
+  app.innerHTML = `
+    <!-- Search -->
+    <div class="search-wrap fade-in">
+      ${ICONS.search}
+      <input class="search-input" type="text" placeholder="Search city..." id="searchInput" value="${city}">
+    </div>
+
+    <!-- Current Weather -->
+    <div class="glass current fade-in delay-1">
+      <div class="current-city">${city}</div>
+      <div class="current-icon">${ICONS[wmo.icon] || ICONS.sun}</div>
+      <div class="current-temp">${Math.round(cur.temperature_2m)}°</div>
+      <div class="current-desc">${wmo.cn}</div>
+      <div class="current-hilo">H:${Math.round(todayHi)}°  L:${Math.round(todayLo)}°</div>
+    </div>
+
+    <!-- Hourly -->
+    <div class="glass fade-in delay-2">
+      <div class="hourly-title">24-Hour Forecast</div>
+      <div class="chart-wrap">${buildChart(hSlice.temps, hSlice.times, hSlice.temps.length)}</div>
+    </div>
+
+    <!-- Details -->
+    <div class="glass fade-in delay-3">
+      <div class="details">
+        <div class="detail-item">
+          ${ICONS.feels}
+          <div>
+            <div class="detail-label">Feels Like</div>
+            <div class="detail-value">${Math.round(cur.apparent_temperature)}°</div>
+          </div>
+        </div>
+        <div class="detail-item">
+          ${ICONS.humidity}
+          <div>
+            <div class="detail-label">Humidity</div>
+            <div class="detail-value">${cur.relative_humidity_2m}%</div>
+          </div>
+        </div>
+        <div class="detail-item">
+          ${ICONS.wind}
+          <div>
+            <div class="detail-label">Wind</div>
+            <div class="detail-value">${Math.round(cur.wind_speed_10m)} km/h</div>
+          </div>
+        </div>
+        <div class="detail-item">
+          ${ICONS.sun}
+          <div>
+            <div class="detail-label">UV Index</div>
+            <div class="detail-value">${isDay ? 'Moderate' : 'Low'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5-Day Forecast -->
+    <div class="glass fade-in delay-4">
+      <div class="daily-title">5-Day Forecast</div>
+      ${dailyRows.map(r => `
+        <div class="daily-row">
+          <span class="daily-day">${r.day}</span>
+          <span class="daily-icon">${r.icon}</span>
+          <span class="daily-desc">${r.desc}</span>
+          <span class="daily-hilo">
+            <span>${r.hi}°</span>
+            <span class="lo">${r.lo}°</span>
+          </span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Bind search
+  const input = document.getElementById('searchInput');
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      const val = input.value.trim();
+      if (val) loadWeather(val);
+    }
+  });
+  // Select text on focus
+  input.addEventListener('focus', function() { this.select(); });
+}
+
+/* ── Error View ──────────────────────────────────────────── */
+function showError(msg) {
+  app.innerHTML = `
+    <div class="error-box">
+      <h2>Oops</h2>
+      <p>${msg}</p>
+      <button onclick="loadWeather('Beijing')">Try Beijing</button>
+    </div>
+  `;
+}
+
+/* ── Main Load ───────────────────────────────────────────── */
+async function loadWeather(cityName) {
+  app.innerHTML = `<div class="loading"><div class="spinner"></div><div class="loading-text">Loading weather...</div></div>`;
+  try {
+    const geo = await geocode(cityName);
+    const data = await fetchWeather(geo.lat, geo.lon);
+    render(geo.name, data);
+  } catch (e) {
+    showError(e.message === 'City not found'
+      ? `City "${cityName}" not found. Please try another name.`
+      : 'Failed to load weather data. Please check your connection.');
+  }
+}
+
+// Make loadWeather accessible globally for the error button
+window.loadWeather = loadWeather;
+
+// Init
+loadWeather('Beijing');
+
+})();
+</script>
+</body>
+</html>
