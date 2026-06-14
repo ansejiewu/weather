@@ -311,7 +311,7 @@ function render(city, data) {
     <!-- Search -->
     <div class="search-wrap fade-in">
       ${ICONS.search}
-      <input class="search-input" type="text" placeholder="Search city..." id="searchInput" value="${city}">
+      <input class="search-input" type="text" placeholder="搜索城市… 试试 Shanghai" id="searchInput" value="${city}">
     </div>
 
     <!-- Current Weather -->
@@ -398,7 +398,7 @@ function showError(msg) {
     <div class="error-box">
       <h2>Oops</h2>
       <p>${msg}</p>
-      <button onclick="loadWeather('Beijing')">Try Beijing</button>
+      <button onclick="loadWeather('Shanghai')">Try Shanghai</button>
     </div>
   `;
 }
@@ -421,7 +421,7 @@ async function loadWeather(cityName) {
 window.loadWeather = loadWeather;
 
 // Init
-loadWeather('Beijing');
+loadWeather('Shanghai');
 
 })();
 </script>
